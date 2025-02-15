@@ -59,5 +59,8 @@
   },
   "cacheDirectories": [
     "node_modules"
-  ]
+  ],
+  "dependencies": {
+    "bookyoon-trajetservice": "file:"
+  }
 }

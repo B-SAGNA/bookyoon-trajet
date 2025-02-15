@@ -1,18 +1,21 @@
-@skipDbChangelog
 entity Trajet {
+    id Integer,
     pointDepart String required,
     pointArrive String required,
     dateHeure ZonedDateTime required,
     placeDispo Integer required,
     prix Float required,
-    itineraire TextBlob,
-    userLogin String required
-    deleted Boolean required
+    itineraire String,
+    status TrajetStatus,
+    utilisateurId Integer required
 }
 
+enum TrajetStatus {
+    EN_COUR,
+    PLEIN,
+    ANNULE
+}
 
 dto * with mapstruct
 service all with serviceClass
-filter *
 paginate Trajet with pagination
-skipClient *

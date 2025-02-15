@@ -9,15 +9,13 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sn.sonatel.dsi.ins.imoc.client.UserClient;
-import sn.sonatel.dsi.ins.imoc.domain.*; // for static metamodels
 import sn.sonatel.dsi.ins.imoc.domain.Trajet;
+import sn.sonatel.dsi.ins.imoc.domain.Trajet_;
 import sn.sonatel.dsi.ins.imoc.repository.TrajetRepository;
-import sn.sonatel.dsi.ins.imoc.security.SecurityUtils;
 import sn.sonatel.dsi.ins.imoc.service.criteria.TrajetCriteria;
 import sn.sonatel.dsi.ins.imoc.service.dto.TrajetDTO;
 import sn.sonatel.dsi.ins.imoc.service.mapper.TrajetMapper;
 import tech.jhipster.service.QueryService;
-import tech.jhipster.service.filter.StringFilter;
 
 /**
  * Service for executing complex queries for {@link Trajet} entities in the database.

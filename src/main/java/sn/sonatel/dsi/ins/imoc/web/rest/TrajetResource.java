@@ -1,22 +1,27 @@
 package sn.sonatel.dsi.ins.imoc.web.rest;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import sn.sonatel.dsi.ins.imoc.domain.Trajet;
 import sn.sonatel.dsi.ins.imoc.repository.TrajetRepository;
+import sn.sonatel.dsi.ins.imoc.security.SecurityUtils;
 import sn.sonatel.dsi.ins.imoc.service.TrajetQueryService;
 import sn.sonatel.dsi.ins.imoc.service.TrajetService;
 import sn.sonatel.dsi.ins.imoc.service.criteria.TrajetCriteria;
@@ -60,8 +65,15 @@ public class TrajetResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
+    @PreAuthorize("hasAuthority('ROLE_CONDUCTEUR')")
     public ResponseEntity<TrajetDTO> createTrajet(@Valid @RequestBody TrajetDTO trajetDTO) throws URISyntaxException {
         log.debug("REST request to save Trajet : {}", trajetDTO);
+
+        //Verifie le role
+        if (!SecurityUtils.hasCurrentUserThisAuthority("ROLE_CONDUCTEUR")) {
+            throw new AccessDeniedException("Only Conductors can create a trip");
+        }
+
         if (trajetDTO.getId() != null) {
             throw new BadRequestAlertException("A new trajet cannot already have an ID", ENTITY_NAME, "idexists");
         }
@@ -82,6 +94,7 @@ public class TrajetResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_CONDUCTEUR')")
     public ResponseEntity<TrajetDTO> updateTrajet(
         @PathVariable(value = "id", required = false) final Long id,
         @Valid @RequestBody TrajetDTO trajetDTO
@@ -115,23 +128,26 @@ public class TrajetResource {
      * or with status {@code 500 (Internal Server Error)} if the trajetDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
+    @PreAuthorize("hasAuthority('ROLE_CONDUCTEUR')")
     public ResponseEntity<TrajetDTO> partialUpdateTrajet(
         @PathVariable(value = "id", required = false) final Long id,
         @NotNull @RequestBody TrajetDTO trajetDTO
     ) throws URISyntaxException {
         log.debug("REST request to partial update Trajet partially : {}, {}", id, trajetDTO);
-        if (trajetDTO.getId() == null) {
-            throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
-        }
-        if (!Objects.equals(id, trajetDTO.getId())) {
-            throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
-        }
+//        if (trajetDTO.getId() == null) {
+//            throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
+//        }
+//        if (!Objects.equals(id, trajetDTO.getId())) {
+//            throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
+//        }
+//
+//        if (!trajetRepository.existsById(id)) {
+//            throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
+//        }
 
-        if (!trajetRepository.existsById(id)) {
-            throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
-        }
-
+        trajetDTO.setId(id);
         Optional<TrajetDTO> result = trajetService.partialUpdate(trajetDTO);
 
         return ResponseUtil.wrapOrNotFound(
@@ -139,6 +155,7 @@ public class TrajetResource {
             HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, trajetDTO.getId().toString())
         );
     }
+
 
     /**
      * {@code GET  /trajets} : get all the trajets.
@@ -206,4 +223,57 @@ public class TrajetResource {
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
+
+
+    // Récupére l'historique des trajets
+    @GetMapping("/history")
+    public ResponseEntity<List<TrajetDTO>> getTrajetsHistory() {
+        List<TrajetDTO> trajets = trajetService.getTrajetsHistory();
+        return ResponseEntity.ok(trajets);
+    }
+    @GetMapping("/mes-trajets-a-venir")
+    public ResponseEntity<List<TrajetDTO>> getTrajetsMesAvenirEtActifs() {
+        List<TrajetDTO> trajets = trajetService.getTrajetsMesAvenirEtActifs();
+        return ResponseEntity.ok(trajets);
+    }
+
+    //Récupere le nombre de place disponible
+    @GetMapping("/{trajetId}/places-disponibles")
+    public ResponseEntity<Integer> getPlacesDisponibles(@PathVariable Long trajetId) {
+        Integer placesDisponibles = trajetService.placesDisponibles(trajetId);
+        return ResponseEntity.ok(placesDisponibles);
+    }
+
+    @GetMapping("/{trajetId}/users")
+    public ResponseEntity<List<String>> getUsersForTrajet(@PathVariable("trajetId") Long trajetid) {
+        List<String> userLogins = trajetService.getUserLoginsForTrajet(trajetid);
+        return ResponseEntity.ok(userLogins);
+    }
+
+    @GetMapping("/{trajetId}/nombre-annulations")
+    public ResponseEntity<Integer> getAnnulation(@PathVariable Long trajetId) {
+        Integer annulations = trajetService.getAnnulation(trajetId);
+        return ResponseEntity.ok(annulations);
+    }
+    @GetMapping("/{trajetId}/places-restantes")
+    public  ResponseEntity<Integer> getPlacesRestantes(@PathVariable Long trajetId){
+        Integer placesRestantes = trajetService.getPlacesRestantes(trajetId);
+        return ResponseEntity.ok(placesRestantes);
+    }
+
+    @GetMapping("/a-venir")
+    public ResponseEntity<List<Trajet>> getTrajetsAvenirEtActifs() {
+        List<Trajet> trajets = trajetService.getTrajetsAvenirEtActifs();
+        return ResponseEntity.ok(trajets);
+    }
+
+
+
+    @PutMapping("/{id}/annuler")
+    public ResponseEntity<Void> annulerTrajet(@PathVariable("id") Long trajetId) {
+        trajetService.annulerTrajet(trajetId);
+        return ResponseEntity.noContent().build();
+    }
+
+
 }
